@@ -14,6 +14,15 @@ export function formatDate(date: Date | string | number): string {
   }).format(new Date(date));
 }
 
+export function formatDateToIndonesian(date: Date | string | number): string {
+  return new Intl.DateTimeFormat('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }).format(new Date(date));
+}
+
 export function formatNumber(amount: number): string {
   return new Intl.NumberFormat('id-ID').format(amount);
 }

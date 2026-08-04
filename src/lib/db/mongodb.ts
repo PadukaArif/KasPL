@@ -1,6 +1,14 @@
 import mongoose from 'mongoose';
+import '@/features/member/models/member.model';
+import '@/features/item/models/item.model';
+import '@/features/session/models/session.model';
+import '@/features/inventory/models/inventory.model';
+import '@/features/expense/models/expense.model';
+import '@/features/transaction/models/transaction.model';
+import '@/features/transaction/models/transactionDetail.model';
+import '@/features/transaction/models/activityLog.model';
+import '@/features/transaction/models/counter.model';
 
-const MONGODB_URI = process.env.MONGODB_URI;
 
 
 
@@ -25,7 +33,8 @@ if (!cached) {
 }
 
 async function connectToDatabase() {
-  if (!MONGODB_URI) {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
     throw new Error('Please define the MONGODB_URI environment variable inside .env');
   }
 
@@ -38,9 +47,7 @@ async function connectToDatabase() {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI as string, opts).then((mongoose) => {
-      return mongoose;
-    });
+    cached.promise = mongoose.connect(uri as string, opts).then((mongoose) => mongoose);
   }
 
   try {

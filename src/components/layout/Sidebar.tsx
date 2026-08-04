@@ -1,11 +1,12 @@
 import Link from 'next/link';
-import { LayoutDashboard, ShoppingCart, Package, Users, Settings } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, Settings, Receipt, ClipboardList } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Penjualan', href: '/sales', icon: ShoppingCart },
-  { name: 'Produk', href: '/products', icon: Package },
-  { name: 'Siswa', href: '/students', icon: Users },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'POS (Kasir)', href: '/pos', icon: ShoppingCart },
+  { name: 'Produk', href: '/master/item', icon: Package },
+  { name: 'Stok Harian', href: '/inventory/prepare', icon: ClipboardList },
+  { name: 'Pengeluaran', href: '/expense', icon: Receipt },
 ];
 
 export function Sidebar() {
