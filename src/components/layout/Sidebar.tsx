@@ -14,6 +14,7 @@ import {
   Lock,
   Users,
   Settings,
+  ShieldCheck,
   ChevronLeft,
   ChevronRight,
   X,
@@ -67,6 +68,7 @@ const menuGroups = [
     title: 'Sistem',
     items: [
       { name: 'Anggota Kelas', href: '/master/member', icon: Users },
+      { name: 'Keamanan Device', href: '/admin', icon: ShieldCheck },
       { name: 'Pengaturan', href: '/settings', icon: Settings },
     ],
   },

@@ -9,6 +9,9 @@ import '@/features/transaction/models/transaction.model';
 import '@/features/transaction/models/transactionDetail.model';
 import '@/features/transaction/models/activityLog.model';
 import '@/features/transaction/models/counter.model';
+import '@/features/device/models/authorizedDevice.model';
+import '@/features/device/models/dailyAccessCode.model';
+import '@/features/device/models/accessCodeAttempt.model';
 
 interface MongooseCache {
   conn: typeof mongoose | null;
