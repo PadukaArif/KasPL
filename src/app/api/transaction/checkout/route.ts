@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { TransactionService } from '@/features/transaction/services/transaction.service';
-import { ServiceError } from '@/utils/errors';
-import { ZodError } from 'zod';
+import { handleApiError } from '@/utils/apiResponse';
 
 export async function POST(request: Request) {
   try {
@@ -14,34 +13,6 @@ export async function POST(request: Request) {
       data: result,
     });
   } catch (error: unknown) {
-    if (error instanceof ZodError) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: 'VALIDATION_ERROR',
-          message: error.issues[0].message,
-        },
-        { status: 400 }
-      );
-    }
-    if (error instanceof ServiceError) {
-      return NextResponse.json(
-        {
-          success: false,
-          code: error.code,
-          message: error.message,
-        },
-        { status: 400 }
-      );
-    }
-    const message = error instanceof Error ? error.message : 'Server error';
-    return NextResponse.json(
-      {
-        success: false,
-        code: 'INTERNAL_ERROR',
-        message,
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Gagal memproses checkout');
   }
 }

@@ -1,12 +1,13 @@
 {
-  "name": "kaspl-temp",
-  "version": "0.1.0",
+  "name": "kaspl",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "npx tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

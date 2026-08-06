@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { ExpenseService, ExpenseServiceError } from '@/features/expense/services/expense.service';
-import { z } from 'zod';
+import { ExpenseService } from '@/features/expense/services/expense.service';
+import { handleApiError } from '@/utils/apiResponse';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,14 +11,13 @@ export async function GET(request: Request) {
     const category = searchParams.get('category') || undefined;
     const startDate = searchParams.get('startDate') || undefined;
     const endDate = searchParams.get('endDate') || undefined;
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '10', 10) || 10));
 
     const result = await ExpenseService.getExpenses({ search, category, startDate, endDate, page, limit });
     return NextResponse.json({ success: true, data: result });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    return NextResponse.json({ success: false, code: 'INTERNAL_ERROR', message }, { status: 500 });
+    return handleApiError(error, 'Gagal memuat pengeluaran');
   }
 }
 
@@ -28,13 +27,6 @@ export async function POST(request: Request) {
     const expense = await ExpenseService.createExpense(body);
     return NextResponse.json({ success: true, message: 'Pengeluaran berhasil ditambahkan', data: expense }, { status: 201 });
   } catch (error: unknown) {
-    if (error instanceof ExpenseServiceError) {
-      return NextResponse.json({ success: false, code: error.code, message: error.message }, { status: 400 });
-    }
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ success: false, code: 'VALIDATION_ERROR', message: error.issues[0].message }, { status: 400 });
-    }
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    return NextResponse.json({ success: false, code: 'INTERNAL_ERROR', message }, { status: 500 });
+    return handleApiError(error, 'Gagal menambahkan pengeluaran');
   }
 }

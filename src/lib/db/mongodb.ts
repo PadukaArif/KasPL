@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { validateEnv } from '../env';
 import '@/features/member/models/member.model';
 import '@/features/item/models/item.model';
 import '@/features/session/models/session.model';
@@ -9,14 +10,6 @@ import '@/features/transaction/models/transactionDetail.model';
 import '@/features/transaction/models/activityLog.model';
 import '@/features/transaction/models/counter.model';
 
-
-
-
-/**
- * Global is used here to maintain a cached connection across hot reloads
- * in development. This prevents connections growing exponentially
- * during API Route usage.
- */
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
@@ -33,7 +26,8 @@ if (!cached) {
 }
 
 async function connectToDatabase() {
-  const uri = process.env.MONGODB_URI;
+  const env = validateEnv();
+  const uri = env.MONGODB_URI;
   if (!uri) {
     throw new Error('Please define the MONGODB_URI environment variable inside .env');
   }

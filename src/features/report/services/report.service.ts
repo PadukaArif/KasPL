@@ -159,29 +159,32 @@ export class ReportService {
     // Transactions for the day
     const transactions = await Transaction.find({ businessDate, status: 'SUCCESS' }).sort({ createdAt: -1 }).lean();
     
-    // Get sessions for that day to find expenses
-    const sessionIds = Array.from(new Set(transactions.map(t => t.sessionId.toString())));
-    
-    // Expenses
-    const expenses = await Expense.find({ 
-      sessionId: { $in: sessionIds }, 
-      deletedAt: null 
-    }).sort({ expenseDate: -1 }).lean();
+    const txIds = transactions.map(t => t._id);
+    const sessionIds = Array.from(new Set(transactions.map(t => t.sessionId)));
 
-    // Top Selling Items
-    const topSellingAgg = await TransactionDetail.aggregate([
-      { $match: { transactionId: { $in: transactions.map(t => t._id) } } },
-      {
-        $group: {
-          _id: '$itemPublicId',
-          name: { $first: '$itemNameSnapshot' },
-          quantitySold: { $sum: '$quantity' },
-          revenue: { $sum: '$subtotalRevenue' },
-          profit: { $sum: '$subtotalProfit' }
-        }
-      },
-      { $sort: { quantitySold: -1 } },
-      { $limit: 10 }
+    const [expenses, topSellingAgg] = await Promise.all([
+      sessionIds.length > 0
+        ? Expense.find({
+            sessionId: { $in: sessionIds },
+            deletedAt: null
+          }).sort({ expenseDate: -1 }).lean()
+        : Promise.resolve([]),
+      txIds.length > 0
+        ? TransactionDetail.aggregate([
+            { $match: { transactionId: { $in: txIds } } },
+            {
+              $group: {
+                _id: '$itemPublicId',
+                name: { $first: '$itemNameSnapshot' },
+                quantitySold: { $sum: '$quantity' },
+                revenue: { $sum: '$subtotalRevenue' },
+                profit: { $sum: '$subtotalProfit' }
+              }
+            },
+            { $sort: { quantitySold: -1 } },
+            { $limit: 10 }
+          ])
+        : Promise.resolve([])
     ]);
 
     const txDetails: ReportTransactionDetail[] = transactions.map(t => ({

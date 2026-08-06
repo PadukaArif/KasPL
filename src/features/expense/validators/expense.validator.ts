@@ -28,7 +28,6 @@ export const createExpenseSchema = z.object({
     .optional(),
   expenseDate: z
     .string()
-    .datetime({ message: 'Format tanggal tidak valid' })
     .optional()
     .or(z.date()),
 });

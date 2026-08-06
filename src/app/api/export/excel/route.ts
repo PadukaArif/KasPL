@@ -1,28 +1,21 @@
 import { NextResponse } from 'next/server';
 import { ExportService } from '@/features/closing/services/export.service';
+import { handleApiError } from '@/utils/apiResponse';
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const sessionId = searchParams.get('sessionId');
-
-    if (!sessionId) {
-      return NextResponse.json({ success: false, error: 'Session ID diperlukan' }, { status: 400 });
-    }
+    const sessionId = searchParams.get('sessionId') || undefined;
 
     const buffer = await ExportService.generateExcel(sessionId);
 
-    return new NextResponse(buffer as unknown as BodyInit, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="KasPL_Export_${sessionId}.xlsx"`,
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Gagal generate Excel';
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Gagal generate Excel');
   }
 }

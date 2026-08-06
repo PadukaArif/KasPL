@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { InventoryService } from '@/features/inventory/services/inventory.service';
+import { handleApiError } from '@/utils/apiResponse';
 
 type RouteContext = { params: Promise<{ sessionId: string }> };
 
@@ -9,7 +10,6 @@ export async function GET(request: Request, context: RouteContext) {
     const inventory = await InventoryService.getInventoryBySession(sessionId);
     return NextResponse.json({ success: true, data: inventory });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    return NextResponse.json({ success: false, code: 'INTERNAL_ERROR', message }, { status: 500 });
+    return handleApiError(error, 'Gagal memuat inventory sesi');
   }
 }

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ItemFormDialogProps {
   open: boolean;
@@ -16,6 +17,7 @@ interface ItemFormDialogProps {
 }
 
 export function ItemFormDialog({ open, onOpenChange, onSuccess, itemId }: ItemFormDialogProps) {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -72,8 +74,8 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess, itemId }: ItemFo
 
     const parsedCost = parseInt(costPrice, 10);
     const parsedSelling = parseInt(sellingPrice, 10);
-    const parsedStock = parseInt(recommendedStock, 10);
-    const parsedOrder = parseInt(displayOrder, 10);
+    const parsedStock = recommendedStock === '' ? 0 : parseInt(recommendedStock, 10);
+    const parsedOrder = displayOrder === '' ? 0 : parseInt(displayOrder, 10);
 
     if (!name.trim()) return setError('Nama barang tidak boleh kosong.');
     if (!category) return setError('Kategori harus dipilih.');
@@ -82,7 +84,7 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess, itemId }: ItemFo
       return setError('Harga jual tidak boleh lebih kecil dari harga modal.');
     }
     if (isNaN(parsedStock) || parsedStock < 0) return setError('Recommended stock tidak valid.');
-    if (isNaN(parsedOrder)) return setError('Display order harus berupa angka.');
+    if (isNaN(parsedOrder)) return setError('Display order tidak valid.');
 
     setSaving(true);
     const url = itemId ? `/api/item/${itemId}` : '/api/item';
@@ -104,13 +106,20 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess, itemId }: ItemFo
 
       const data = await res.json();
       if (data.success) {
+        toast({
+          title: 'Berhasil',
+          message: itemId ? 'Master barang berhasil diperbarui.' : 'Master barang baru berhasil ditambahkan.',
+          variant: 'success',
+        });
         onSuccess();
         onOpenChange(false);
       } else {
         setError(data.message || 'Gagal menyimpan data barang.');
+        toast({ title: 'Gagal', message: data.message || 'Gagal menyimpan barang.', variant: 'error' });
       }
     } catch {
       setError('Terjadi kesalahan jaringan.');
+      toast({ title: 'Kesalahan Jaringan', message: 'Tidak dapat menghubungi server.', variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -216,7 +225,7 @@ export function ItemFormDialog({ open, onOpenChange, onSuccess, itemId }: ItemFo
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
                 Batal
               </Button>
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving} className="bg-[#1F4E79] hover:bg-[#153552]">
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Simpan
               </Button>

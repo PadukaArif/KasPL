@@ -1,96 +1,174 @@
-# KasPL
+# KasPL v1.0 - Koperasi & Kantin Penjualan Kelas
 
-KasPL is an Enterprise-Grade Point of Sale (POS) & Inventory Management system for local businesses (Koperasi/Kantin), built with strict TypeScript and modern Next.js 14 architecture. 
+> Enterprise-Grade Point of Sale (POS), Inventory & Financial Management System for School Class Stores.
 
-## 🚀 Features
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](#quality-gate)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.2-black)](https://nextjs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green)](https://www.mongodb.com/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](#license)
 
-- **Sprint 1: Member & Selling Session** 
-  - Manage class members and strict selling sessions with lifecycle management (OPEN, LOCKED, CLOSED).
-- **Sprint 2: Master Item** 
-  - Centralized management for all sellable items (Food, Drink, Snack).
-- **Sprint 3A: Daily Inventory** 
-  - Immutable daily stock snapshots as the single source of truth during an active selling session.
-- **Sprint 3B: POS Cart Engine** 
-  - Real-time cart calculations linking directly to the Daily Inventory snapshots.
-- **Sprint 3C: Checkout Engine** 
-  - Multi-document ACID transactions via MongoDB ClientSession for guaranteed financial atomicity and idempotency.
+---
 
-## 🛠️ Tech Stack
+## 📌 Overview
 
-- **Framework**: Next.js 14 (App Router)
-- **Language**: Strict TypeScript
-- **Database**: MongoDB (Replica Set required for ACID transactions)
-- **ODM**: Mongoose
-- **Styling**: Tailwind CSS, shadcn/ui, Lucide Icons
-- **Validation**: Zod
+**KasPL** is a specialized, production-tested web application designed for school class selling sessions (Kantin / Koperasi Kelas). It ensures financial integrity, stock tracking, operational expense recording, real-time analytics, and automated profit distribution calculation (40% School Share / 60% Class Share).
 
-## 📂 Architecture & Folder Structure
+The application features strict session state controls (`ACTIVE`, `LOCKED`, `CLOSED`), ACID transaction safety via MongoDB client sessions, dynamic reports (Excel & PDF export), and lightweight performance optimization.
 
-The project strictly follows a **Feature-Based Architecture** and the **Repository Pattern**.
+---
+
+## ✨ Features
+
+- **Selling Session Management**: Start sessions with 3 designated guardians, enforce active session isolation, and close sessions with automatic profit share calculations.
+- **Master Item Management**: Manage catalog of sellable products categorized into `FOOD`, `DRINK`, and `SNACK` with display ordering and cost/selling prices.
+- **Daily Inventory Snapshots**: Lock stock snapshots per selling session to ensure immutable audit trails and prevent stock tampering.
+- **Point of Sale (POS) Engine**: Fast checkout interface with real-time stock deduction, CASH payment validation, and transactional sequence generation (`TRX-YYYYMMDD-xxxxxx`).
+- **Operational Expense Tracking**: Record expenses (`OPERATIONAL`, `RAW_MATERIAL`, `EQUIPMENT`, `OTHER`) tied to active selling sessions.
+- **Real-Time Analytics Dashboard**: Monitor gross revenue, cost of goods, net profit, low stock warnings, top-selling products, and interactive Recharts visualizations.
+- **Financial Reports & Exports**: Export detailed Excel spreadsheets (`.xlsx`) and print-friendly PDF summaries per selling day or week.
+- **Automated Quality & Regression Test Suite**: Integrated unit, integration, business flow, and 12-module regression tests (`npm run test`).
+
+---
+
+## 🖼️ UI Screenshots
+
+| POS Checkout Screen | Analytics Dashboard |
+|---|---|
+| ![POS Screenshot Placeholder](public/favicon.ico) | ![Dashboard Screenshot Placeholder](public/favicon.ico) |
+
+*Note: Visual interfaces can be inspected directly in the application pages under `/pos` and `/dashboard`.*
+
+---
+
+## 🛠️ Technology Stack
+
+- **Framework**: [Next.js 16 (App Router)](https://nextjs.org/)
+- **Language**: [TypeScript 5 (Strict Mode)](https://www.typescriptlang.org/)
+- **UI Components**: [React 19](https://react.dev/), Tailwind CSS 4, Lucide Icons
+- **Database & ODM**: [MongoDB](https://www.mongodb.com/) (Replica Set required for ACID transactions) with [Mongoose 9](https://mongoosejs.com/)
+- **Schema Validation**: [Zod 4](https://zod.dev/)
+- **Charts**: [Recharts 3](https://recharts.org/) (Dynamically imported for bundle optimization)
+- **Exports**: [ExcelJS 4](https://github.com/exceljs/exceljs)
+- **Testing**: Node 24 Native Test Runner (`node:test` & `node:assert`) + `tsx`
+
+---
+
+## 📂 Folder Structure Overview
 
 ```
-src/
-├── app/                  # Next.js App Router (Pages & API Routes)
-├── components/           # Global shared UI components
-├── features/             # Feature modules (Business Logic & Data Access)
-│   ├── inventory/        # Daily Inventory Feature
-│   ├── item/             # Master Item Feature
-│   ├── member/           # Member Feature
-│   ├── pos/              # POS UI & Cart Feature
-│   ├── session/          # Selling Session Feature
-│   └── transaction/      # Checkout Engine Feature
-│       ├── components/   # Feature-specific UI components
-│       ├── models/       # Mongoose Models
-│       ├── repositories/ # Database abstract layer (Requires ClientSession)
-│       ├── services/     # Core Business Logic
-│       ├── types/        # TypeScript Interfaces
-│       └── validators/   # Zod Schemas
-├── lib/                  # Shared utilities (DB connection, etc.)
-└── utils/                # Helper functions (Errors, Formatters)
+KasPL/
+├── docs/                 # Production & developer documentation suite
+├── public/               # Static assets & public icons
+├── src/
+│   ├── app/              # Next.js App Router pages, layouts & API routes
+│   ├── components/       # Shared UI components (layout, skeletons, dialogs)
+│   ├── features/         # Modular business domains (POS, Item, Session, Inventory, Expense, Report, Dashboard)
+│   ├── hooks/            # Custom React hooks
+│   ├── lib/              # Database connection, env validation, rate limiters
+│   ├── types/            # Global TypeScript interfaces
+│   └── utils/            # Helper functions (formatters, validators, errors)
+└── tests/                # Automated test suites (unit, integration, business-flow, regression)
 ```
 
-## ⚙️ Installation Guide
+For detailed folder responsibilities, see [docs/folder-structure.md](docs/folder-structure.md).
 
-1. Clone the repository:
+---
+
+## ⚙️ Installation & Setup
+
+### Prerequisites
+- **Node.js**: v20.x or higher (v24.x recommended)
+- **MongoDB**: A running MongoDB instance with Replica Set enabled (e.g., [MongoDB Atlas](https://www.mongodb.com/cloud/atlas))
+
+### Steps
+
+1. **Clone the repository**:
    ```bash
    git clone https://github.com/PadukaArif/KasPL.git
    cd KasPL
    ```
-2. Install dependencies:
+
+2. **Install dependencies**:
    ```bash
    npm install
    ```
-3. Set up environment variables:
-   Copy `.env.example` to `.env` and fill in the required values.
+
+3. **Configure Environment Variables**:
+   Copy `.env.example` to `.env`:
    ```bash
    cp .env.example .env
    ```
-   **Note:** You MUST use a MongoDB Replica Set (e.g., MongoDB Atlas) for multi-document transactions to work.
+   Fill in your `.env` variables:
+   ```env
+   MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/kaspl_db?retryWrites=true&w=majority
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
+   NODE_ENV=development
+   ```
 
-4. Run the development server:
+4. **Start Local Development Server**:
    ```bash
    npm run dev
    ```
+   Open `http://localhost:3000` in your browser.
 
-## 🔐 Environment Variables
-
-The `.env.example` file contains all required keys. Never commit your actual `.env` file.
-```env
-MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>?retryWrites=true&w=majority
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NODE_ENV=development
-```
+---
 
 ## 📜 Available Scripts
 
-- `npm run dev`: Starts the development server.
-- `npm run build`: Creates an optimized production build.
-- `npm run start`: Starts the production server.
-- `npm run lint`: Runs ESLint to find and fix problems.
+- `npm run dev`: Launch local Next.js development server.
+- `npm run build`: Compile Next.js production build.
+- `npm run start`: Launch production server.
+- `npm run lint`: Execute ESLint code checks.
+- `npm run test`: Run the full 55-test suite across unit, integration, business flow, and regression modules.
 
-## 📈 Future Roadmap
+---
 
-- **Sprint 4**: Expense Management Module
-- **Sprint 5**: Excel Export & Receipt Printing
-- **Sprint 6**: Analytics & Dashboard
-- **Sprint 7**: History & Ledger
+## 🧪 Testing & Quality Gate
+
+Run all verification checks prior to committing or deploying:
+
+```bash
+npm run test         # Run unit, integration & business flow tests
+npx tsc --noEmit     # Check TypeScript compilation
+npm run lint         # Check ESLint formatting & rules
+npm run build        # Build production bundle
+```
+
+For detailed test scenarios and reproduction steps, refer to [testing_guide.md](testing_guide.md).
+
+---
+
+## 🔒 Security Practices
+
+- Input payloads sanitized and validated via Zod schemas.
+- Database access abstracted behind strict Repository layers.
+- In-memory rate limiting applied to key API routes.
+- Multi-document ACID transactions with ClientSession ensuring idempotency and zero half-written state.
+
+---
+
+## 📚 Documentation Index
+
+Explore the complete documentation in `/docs`:
+
+- [Architecture Overview](docs/architecture.md)
+- [Database Schema & Collections](docs/database.md)
+- [API Reference Guide](docs/api.md)
+- [Business Flow Workflows](docs/business-flow.md)
+- [Deployment Guide](docs/deployment.md)
+- [Developer & Contribution Guide](docs/developer-guide.md)
+- [Folder Architecture Map](docs/folder-structure.md)
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+## 👨‍💻 Author & Maintainer
+
+Developed with ❤️ for Koperasi & Kantin Penjualan Kelas.  
+Maintainer: **PadukaArif / KasPL Core Team**

@@ -5,7 +5,8 @@ import { PeriodSummaryCards } from '@/features/report/components/PeriodSummaryCa
 import { WeekReportTable } from '@/features/report/components/WeekReportTable';
 import { ReportFilter } from '@/features/report/components/ReportFilter';
 import { PeriodSummary } from '@/features/report/types/report.types';
-import { Loader2, FileText, AlertCircle } from 'lucide-react';
+import { Loader2, FileText, AlertCircle, FileSpreadsheet, Printer } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function ReportPage() {
   const [loading, setLoading] = useState(true);
@@ -59,10 +60,22 @@ export default function ReportPage() {
           </p>
         </div>
         
-        <ReportFilter 
-          currentMonth={currentMonth} 
-          onMonthChange={setCurrentMonth} 
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <ReportFilter 
+            currentMonth={currentMonth} 
+            onMonthChange={setCurrentMonth} 
+          />
+          <a href="/api/export/excel" target="_blank" rel="noreferrer">
+            <Button variant="outline" size="sm" className="gap-1.5 text-emerald-700 border-emerald-200 bg-emerald-50 hover:bg-emerald-100">
+              <FileSpreadsheet className="h-4 w-4" /> Export Excel
+            </Button>
+          </a>
+          <a href="/api/export/pdf" target="_blank" rel="noreferrer">
+            <Button variant="outline" size="sm" className="gap-1.5 text-blue-700 border-blue-200 bg-blue-50 hover:bg-blue-100">
+              <Printer className="h-4 w-4" /> Print / PDF
+            </Button>
+          </a>
+        </div>
       </div>
 
       {loading ? (

@@ -14,7 +14,72 @@ export class InventoryServiceError extends Error {
 }
 
 export class InventoryService {
-  static async getInventoryBySession(sessionId: string) {
+  static async syncInventory(sessionId: string) {
+    const existingRecords = await InventoryRepository.findAllBySession(sessionId);
+    if (!existingRecords || existingRecords.length === 0) {
+      return [];
+    }
+
+    const existingItemIds = new Set(existingRecords.map((r) => r.itemId.toString()));
+    const existingItemPublicIds = new Set(existingRecords.map((r) => r.itemPublicId));
+
+    let sessionStatus: 'OPEN' | 'LOCKED' | 'CLOSED' = 'OPEN';
+    if (existingRecords.some((r) => r.status === 'CLOSED')) {
+      sessionStatus = 'CLOSED';
+    } else if (existingRecords.some((r) => r.status === 'LOCKED')) {
+      sessionStatus = 'LOCKED';
+    }
+
+    const recordsNeedingStatusUpdate = existingRecords.filter((r) => r.status !== sessionStatus);
+    if (recordsNeedingStatusUpdate.length > 0) {
+      if (sessionStatus === 'LOCKED') {
+        await InventoryRepository.lockInventory(sessionId);
+      } else if (sessionStatus === 'CLOSED') {
+        await InventoryRepository.closeInventory(sessionId);
+      }
+    }
+
+    const { items } = await ItemRepository.findAll({ skip: 0, limit: 1000 });
+    const activeMasterItems = items.filter((item) => item.isActive);
+
+    const missingMasterItems = activeMasterItems.filter(
+      (item) => !existingItemIds.has(item._id.toString()) && !existingItemPublicIds.has(item.publicId)
+    );
+
+    if (missingMasterItems.length > 0) {
+      let currentSeq = await InventoryRepository.findNextPublicIdSequence();
+      const sessionObjectId = existingRecords[0].sessionId;
+
+      const newInventories = missingMasterItems.map((masterItem) => {
+        const publicId = `KSP-INV-${String(currentSeq).padStart(6, '0')}`;
+        currentSeq++;
+
+        return {
+          publicId,
+          sessionId: sessionObjectId,
+          itemId: masterItem._id as import('mongoose').Types.ObjectId,
+          itemPublicId: masterItem.publicId,
+          itemNameSnapshot: masterItem.name,
+          categorySnapshot: masterItem.category,
+          costPriceSnapshot: masterItem.costPrice,
+          sellingPriceSnapshot: masterItem.sellingPrice,
+          displayOrderSnapshot: masterItem.displayOrder,
+          openingStock: masterItem.recommendedStock,
+          remainingStock: masterItem.recommendedStock,
+          soldQuantity: 0,
+          status: sessionStatus,
+        };
+      });
+
+      await InventoryRepository.createMany(newInventories);
+
+      await ActivityLogService.log('SYNC_DAILY_INVENTORY', {
+        sessionId,
+        syncedItemCount: newInventories.length,
+        items: newInventories.map((i) => i.itemNameSnapshot),
+      });
+    }
+
     const records = await InventoryRepository.findAllBySession(sessionId);
     return records.map((r) => ({
       id: r._id.toString(),
@@ -35,13 +100,17 @@ export class InventoryService {
     }));
   }
 
+  static async getInventoryBySession(sessionId: string) {
+    return this.syncInventory(sessionId);
+  }
+
   static async initializeInventory(data: InitializeInventoryInput) {
     // 1. Zod Validation
     const parsed = initializeInventorySchema.parse(data);
 
     // 2. Validate Session
     const activeSession = await SessionRepository.findActiveSession();
-    if (!activeSession || activeSession._id.toString() !== parsed.sessionId) {
+    if (!activeSession || (activeSession._id.toString() !== parsed.sessionId && activeSession.publicId !== parsed.sessionId)) {
       throw new InventoryServiceError('Tidak ada sesi penjualan aktif yang cocok.', 'NO_ACTIVE_SESSION');
     }
 
@@ -63,19 +132,18 @@ export class InventoryService {
     const activeItemsMap = new Map(activeItems.map((item) => [item._id.toString(), item]));
 
     // 5. Generate Snapshot and validate inputs
-    const count = await InventoryRepository.count();
-    let currentSeq = count;
+    let currentSeq = await InventoryRepository.findNextPublicIdSequence();
 
     const inventoriesToCreate = [];
 
     for (const inputItem of parsed.items) {
-      const masterItem = activeItemsMap.get(inputItem.itemId);
+      const masterItem = activeItemsMap.get(inputItem.itemId) || activeItems.find((i) => i.publicId === inputItem.itemId);
       if (!masterItem) {
         throw new InventoryServiceError(`Barang dengan ID ${inputItem.itemId} tidak ditemukan atau tidak aktif.`, 'VALIDATION_ERROR');
       }
 
-      currentSeq++;
       const publicId = `KSP-INV-${String(currentSeq).padStart(6, '0')}`;
+      currentSeq++;
 
       inventoriesToCreate.push({
         publicId,
@@ -90,7 +158,7 @@ export class InventoryService {
         openingStock: inputItem.openingStock,
         remainingStock: inputItem.openingStock,
         soldQuantity: 0,
-        status: 'OPEN' as const,
+        status: 'LOCKED' as const,
       });
     }
 
@@ -103,10 +171,30 @@ export class InventoryService {
       itemCount: created.length,
     });
 
-    return created;
+    return created.map((rec) => ({
+      id: rec._id.toString(),
+      publicId: rec.publicId,
+      sessionId: rec.sessionId.toString(),
+      itemId: rec.itemId.toString(),
+      itemPublicId: rec.itemPublicId,
+      itemNameSnapshot: rec.itemNameSnapshot,
+      categorySnapshot: rec.categorySnapshot,
+      costPriceSnapshot: rec.costPriceSnapshot,
+      sellingPriceSnapshot: rec.sellingPriceSnapshot,
+      displayOrderSnapshot: rec.displayOrderSnapshot,
+      openingStock: rec.openingStock,
+      remainingStock: rec.remainingStock,
+      soldQuantity: rec.soldQuantity,
+      status: rec.status,
+      createdAt: rec.createdAt,
+    }));
   }
 
   static async updateOpeningStock(id: string, data: UpdateOpeningStockInput) {
+    if (!id || id.length !== 24) {
+      throw new InventoryServiceError('Data inventory tidak ditemukan.', 'INVENTORY_NOT_FOUND');
+    }
+
     // 1. Zod Validation
     const parsed = updateOpeningStockSchema.parse(data);
 
@@ -121,20 +209,43 @@ export class InventoryService {
       throw new InventoryServiceError('Opening stock tidak dapat diubah karena inventory sudah dikunci atau ditutup.', 'INVENTORY_LOCKED');
     }
 
-    // 4. Update
-    const updated = await InventoryRepository.updateOpeningStock(id, parsed.openingStock);
-
-    // 5. Activity Log
-    if (updated) {
-      await ActivityLogService.log('UPDATE_OPENING_STOCK', {
-        inventoryId: id,
-        itemPublicId: updated.itemPublicId,
-        oldOpeningStock: inventory.openingStock,
-        newOpeningStock: parsed.openingStock,
-      });
+    const sessionRecords = await InventoryRepository.findAllBySession(inventory.sessionId.toString());
+    const isAnyLockedOrClosed = sessionRecords.some((r) => r.status === 'LOCKED' || r.status === 'CLOSED');
+    if (isAnyLockedOrClosed) {
+      throw new InventoryServiceError('Opening stock tidak dapat diubah karena inventory sesi ini sudah dikunci atau ditutup.', 'INVENTORY_LOCKED');
     }
 
-    return updated;
+    // 4. Update
+    const updated = await InventoryRepository.updateOpeningStock(id, parsed.openingStock);
+    if (!updated) {
+      throw new InventoryServiceError('Data inventory tidak ditemukan.', 'INVENTORY_NOT_FOUND');
+    }
+
+    // 5. Activity Log
+    await ActivityLogService.log('UPDATE_OPENING_STOCK', {
+      inventoryId: id,
+      itemPublicId: updated.itemPublicId,
+      oldOpeningStock: inventory.openingStock,
+      newOpeningStock: parsed.openingStock,
+    });
+
+    return {
+      id: updated._id.toString(),
+      publicId: updated.publicId,
+      sessionId: updated.sessionId.toString(),
+      itemId: updated.itemId.toString(),
+      itemPublicId: updated.itemPublicId,
+      itemNameSnapshot: updated.itemNameSnapshot,
+      categorySnapshot: updated.categorySnapshot,
+      costPriceSnapshot: updated.costPriceSnapshot,
+      sellingPriceSnapshot: updated.sellingPriceSnapshot,
+      displayOrderSnapshot: updated.displayOrderSnapshot,
+      openingStock: updated.openingStock,
+      remainingStock: updated.remainingStock,
+      soldQuantity: updated.soldQuantity,
+      status: updated.status,
+      createdAt: updated.createdAt,
+    };
   }
 
   static async lockInventory(sessionId: string) {

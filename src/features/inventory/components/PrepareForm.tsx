@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, AlertTriangle, CheckCircle, Lock, LockKeyhole } from 'lucide-react';
 import { formatCurrency } from '@/utils/formatters';
+import { useToast } from '@/hooks/use-toast';
 
 interface ActiveSession {
   id: string;
@@ -49,6 +50,7 @@ interface InventoryRecord {
 }
 
 export function PrepareForm() {
+  const { toast } = useToast();
   const router = useRouter();
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [masterItems, setMasterItems] = useState<MasterItem[]>([]);
@@ -82,9 +84,15 @@ export function PrepareForm() {
       const invData = await invRes.json();
 
       if (invData.success && invData.data && invData.data.length > 0) {
-        setInventory(invData.data as InventoryRecord[]);
+        const sortedInv = [...(invData.data as InventoryRecord[])].sort((a, b) => {
+          const orderA = a.displayOrderSnapshot ?? 0;
+          const orderB = b.displayOrderSnapshot ?? 0;
+          if (orderA !== orderB) return orderA - orderB;
+          return (a.itemNameSnapshot || '').localeCompare(b.itemNameSnapshot || '');
+        });
+        setInventory(sortedInv);
         const initialEditStocks: Record<string, number> = {};
-        (invData.data as InventoryRecord[]).forEach((r) => {
+        sortedInv.forEach((r) => {
           initialEditStocks[r.id] = r.openingStock;
         });
         setEditingStocks(initialEditStocks);
@@ -93,7 +101,14 @@ export function PrepareForm() {
         const itemsRes = await fetch('/api/item?limit=1000');
         const itemsData = await itemsRes.json();
         if (itemsData.success) {
-          const activeOnly = (itemsData.data.items as MasterItem[]).filter((i) => i.isActive);
+          const activeOnly = (itemsData.data.items as MasterItem[])
+            .filter((i) => i.isActive)
+            .sort((a, b) => {
+              const orderA = a.displayOrder ?? 0;
+              const orderB = b.displayOrder ?? 0;
+              if (orderA !== orderB) return orderA - orderB;
+              return a.name.localeCompare(b.name);
+            });
           setMasterItems(activeOnly);
           const initialStocks: Record<string, number> = {};
           activeOnly.forEach((item) => {
@@ -154,12 +169,19 @@ export function PrepareForm() {
       const data = await res.json();
       if (data.success) {
         setSuccess('Inventory berhasil diinisialisasi untuk hari ini!');
+        toast({
+          title: 'Berhasil',
+          message: 'Inventory berhasil diinisialisasi untuk hari ini.',
+          variant: 'success',
+        });
         loadData();
       } else {
         setError(data.message || 'Gagal menginisialisasi inventory.');
+        toast({ title: 'Gagal', message: data.message || 'Gagal menginisialisasi inventory.', variant: 'error' });
       }
     } catch {
       setError('Terjadi kesalahan jaringan.');
+      toast({ title: 'Kesalahan Jaringan', message: 'Tidak dapat menghubungi server.', variant: 'error' });
     } finally {
       setSubmitting(false);
       setConfirmOpen(false);
@@ -182,12 +204,19 @@ export function PrepareForm() {
       const data = await res.json();
       if (data.success) {
         setSuccess('Opening stock berhasil diperbarui.');
+        toast({
+          title: 'Berhasil',
+          message: 'Opening stock berhasil diperbarui.',
+          variant: 'success',
+        });
         loadData();
       } else {
         setError(data.message || 'Gagal memperbarui stock.');
+        toast({ title: 'Gagal', message: data.message || 'Gagal memperbarui stock.', variant: 'error' });
       }
     } catch {
       setError('Terjadi kesalahan jaringan.');
+      toast({ title: 'Kesalahan Jaringan', message: 'Tidak dapat menghubungi server.', variant: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -281,9 +310,9 @@ export function PrepareForm() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {masterItems.map((item) => (
+                      {masterItems.map((item, idx) => (
                         <TableRow key={item.id}>
-                          <TableCell className="font-mono text-xs">{item.displayOrder}</TableCell>
+                          <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
                           <TableCell className="font-medium">{item.name}</TableCell>
                           <TableCell>
                             <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium">
@@ -330,7 +359,16 @@ export function PrepareForm() {
                   Stok awal yang sudah diinisialisasi. Stok hanya dapat diubah selama belum ada transaksi yang dikunci.
                 </CardDescription>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadData}
+                  disabled={submitting || loading}
+                  className="text-xs"
+                >
+                  Sinkronkan Stok
+                </Button>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-800">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Inisialisasi Aktif
@@ -355,11 +393,13 @@ export function PrepareForm() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {inventory.map((rec) => {
-                    const isLocked = rec.status === 'LOCKED' || rec.status === 'CLOSED';
-                    return (
-                      <TableRow key={rec.id}>
-                        <TableCell className="font-mono text-xs">{rec.displayOrderSnapshot}</TableCell>
+                  {(() => {
+                    const isSessionInventoryLocked = inventory.some((r) => r.status === 'LOCKED' || r.status === 'CLOSED');
+                    return inventory.map((rec, idx) => {
+                      const isLocked = rec.status === 'LOCKED' || rec.status === 'CLOSED' || isSessionInventoryLocked;
+                      return (
+                        <TableRow key={rec.id}>
+                        <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
                         <TableCell className="font-medium">
                           {rec.itemNameSnapshot}
                           <div className="text-xs text-muted-foreground font-mono">{rec.itemPublicId}</div>
@@ -414,7 +454,8 @@ export function PrepareForm() {
                         </TableCell>
                       </TableRow>
                     );
-                  })}
+                  });
+                })()}
                 </TableBody>
               </Table>
             </div>

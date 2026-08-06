@@ -5,11 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { ItemFormDialog } from '@/features/item/components/ItemFormDialog';
-import { ItemDeleteDialog } from '@/features/item/components/ItemDeleteDialog';
 import { Loader2, Plus, Search, Edit2, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/utils/formatters';
+
+const ItemFormDialog = dynamic(() => import('@/features/item/components/ItemFormDialog').then(mod => mod.ItemFormDialog), {
+  ssr: false,
+});
+const ItemDeleteDialog = dynamic(() => import('@/features/item/components/ItemDeleteDialog').then(mod => mod.ItemDeleteDialog), {
+  ssr: false,
+});
 
 interface Item {
   id: string;

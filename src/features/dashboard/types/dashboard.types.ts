@@ -6,6 +6,8 @@ export interface DashboardSummaryMetrics {
   transactionsCount: number;
   itemsSold: number;
   averageTransactionValue: number;
+  schoolShare: number;
+  classShare: number;
 }
 
 export interface ChartData {

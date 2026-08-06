@@ -118,14 +118,14 @@ export class ExpenseService {
     }
 
     // 3. Generate public ID
-    const count = await ExpenseRepository.count();
-    const publicId = `KSP-EXP-${String(count + 1).padStart(6, '0')}`;
+    const nextSeq = await ExpenseRepository.findNextPublicIdSequence();
+    const publicId = `KSP-EXP-${String(nextSeq).padStart(6, '0')}`;
 
     // 4. Save
     const expense = await ExpenseRepository.create({
       ...parsed,
       publicId,
-      sessionId: activeSession.id as unknown as mongoose.Types.ObjectId,
+      sessionId: new mongoose.Types.ObjectId(activeSession.id),
       expenseDate: parsed.expenseDate ? new Date(parsed.expenseDate) : new Date(),
     });
 
@@ -138,10 +138,23 @@ export class ExpenseService {
       sessionId: activeSession.id,
     });
 
-    return expense;
+    return {
+      id: expense._id.toString(),
+      publicId: expense.publicId,
+      title: expense.title,
+      category: expense.category,
+      amount: expense.amount,
+      notes: expense.notes,
+      expenseDate: expense.expenseDate,
+      createdAt: expense.createdAt,
+    };
   }
 
   static async updateExpense(id: string, data: UpdateExpenseInput) {
+    if (!id) {
+      throw new ExpenseServiceError('Pengeluaran tidak ditemukan', 'EXPENSE_NOT_FOUND');
+    }
+
     // 1. Zod Validation
     const parsed = updateExpenseSchema.parse(data);
 
@@ -163,21 +176,35 @@ export class ExpenseService {
       updateData.expenseDate = new Date(parsed.expenseDate);
     }
 
-    const updated = await ExpenseRepository.update(id, updateData);
-
-    // 5. Activity Log
-    if (updated) {
-      await ActivityLogService.log('UPDATE_EXPENSE', {
-        expenseId: updated._id.toString(),
-        publicId: updated.publicId,
-        changes: parsed,
-      });
+    const updated = await ExpenseRepository.update(current._id.toString(), updateData);
+    if (!updated) {
+      throw new ExpenseServiceError('Pengeluaran tidak ditemukan', 'EXPENSE_NOT_FOUND');
     }
 
-    return updated;
+    // 5. Activity Log
+    await ActivityLogService.log('UPDATE_EXPENSE', {
+      expenseId: updated._id.toString(),
+      publicId: updated.publicId,
+      changes: parsed,
+    });
+
+    return {
+      id: updated._id.toString(),
+      publicId: updated.publicId,
+      title: updated.title,
+      category: updated.category,
+      amount: updated.amount,
+      notes: updated.notes,
+      expenseDate: updated.expenseDate,
+      createdAt: updated.createdAt,
+    };
   }
 
   static async deleteExpense(id: string) {
+    if (!id) {
+      throw new ExpenseServiceError('Pengeluaran tidak ditemukan', 'EXPENSE_NOT_FOUND');
+    }
+
     // 1. Fetch current expense
     const current = await ExpenseRepository.findById(id);
     if (!current) {
@@ -191,17 +218,24 @@ export class ExpenseService {
     }
 
     // 3. Soft Delete
-    const deleted = await ExpenseRepository.softDelete(id);
-
-    // 4. Activity Log
-    if (deleted) {
-      await ActivityLogService.log('DELETE_EXPENSE', {
-        expenseId: deleted._id.toString(),
-        publicId: deleted.publicId,
-        title: deleted.title,
-      });
+    const deleted = await ExpenseRepository.softDelete(current._id.toString());
+    if (!deleted) {
+      throw new ExpenseServiceError('Pengeluaran tidak ditemukan', 'EXPENSE_NOT_FOUND');
     }
 
-    return deleted;
+    // 4. Activity Log
+    await ActivityLogService.log('DELETE_EXPENSE', {
+      expenseId: deleted._id.toString(),
+      publicId: deleted.publicId,
+      title: deleted.title,
+    });
+
+    return {
+      id: deleted._id.toString(),
+      publicId: deleted.publicId,
+      title: deleted.title,
+      category: deleted.category,
+      amount: deleted.amount,
+    };
   }
 }

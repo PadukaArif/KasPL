@@ -11,7 +11,7 @@ export class POSRepository {
   static async getSellableItems(sessionId: string): Promise<POSItemSnapshot[]> {
     const inventoryItems = await DailyInventory.find({
       sessionId: new Types.ObjectId(sessionId),
-    }).sort({ displayOrderSnapshot: 1 });
+    }).sort({ displayOrderSnapshot: 1 }).lean();
 
     return inventoryItems.map((item) => ({
       id: item._id.toString(),

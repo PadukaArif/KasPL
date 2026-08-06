@@ -4,6 +4,8 @@ import { SellingSession } from '@/features/session/models/session.model';
 import { Transaction } from '@/features/transaction/models/transaction.model';
 import { Expense } from '@/features/expense/models/expense.model';
 import { DailyInventory } from '@/features/inventory/models/inventory.model';
+import { InventoryRepository } from '@/features/inventory/repositories/inventory.repository';
+import { ActivityLogService } from '@/features/activityLog/services/activityLog.service';
 import { ClosingSessionData, ClosingSummary } from '../types/closing.types';
 import { ServiceError } from '@/utils/errors';
 
@@ -12,50 +14,56 @@ export class ClosingService {
     await connectToDatabase();
 
     // 1. Get Session
-    const session = await SellingSession.findById(sessionId);
+    const session = await SellingSession.findById(sessionId).select('_id publicId periodMonth periodWeek startDate endDate status guardians').lean();
     if (!session) {
       throw new ServiceError('Sesi tidak ditemukan', 'SESSION_NOT_FOUND');
     }
 
-    // 2. Aggregate Transactions
-    const transactions = await Transaction.find({
-      sessionId: new mongoose.Types.ObjectId(sessionId),
-      status: 'SUCCESS',
-    });
+    // 2. Aggregate Transactions, Expenses, and Inventories in parallel via MongoDB pipelines
+    const sessionObjId = session._id;
 
-    let revenue = 0;
-    let cost = 0;
-    let grossProfit = 0;
-    let itemsSold = 0;
-    const transactionsCount = transactions.length;
+    const [txAgg, expAgg, invAgg] = await Promise.all([
+      Transaction.aggregate([
+        { $match: { sessionId: sessionObjId, status: 'SUCCESS' } },
+        {
+          $group: {
+            _id: null,
+            revenue: { $sum: '$grossRevenue' },
+            cost: { $sum: '$grossCost' },
+            grossProfit: { $sum: '$grossProfit' },
+            itemsSold: { $sum: '$totalQuantity' },
+            transactionsCount: { $sum: 1 },
+          },
+        },
+      ]),
+      Expense.aggregate([
+        { $match: { sessionId: sessionObjId, deletedAt: null } },
+        {
+          $group: {
+            _id: null,
+            expenseTotal: { $sum: '$amount' },
+          },
+        },
+      ]),
+      DailyInventory.aggregate([
+        { $match: { sessionId: sessionObjId } },
+        {
+          $group: {
+            _id: null,
+            remainingStock: { $sum: '$remainingStock' },
+          },
+        },
+      ]),
+    ]);
 
-    for (const tx of transactions) {
-      revenue += tx.grossRevenue;
-      cost += tx.grossCost;
-      grossProfit += tx.grossProfit;
-      itemsSold += tx.totalQuantity;
-    }
+    const revenue = txAgg[0]?.revenue || 0;
+    const cost = txAgg[0]?.cost || 0;
+    const grossProfit = txAgg[0]?.grossProfit || 0;
+    const itemsSold = txAgg[0]?.itemsSold || 0;
+    const transactionsCount = txAgg[0]?.transactionsCount || 0;
 
-    // 3. Aggregate Expenses
-    const expenses = await Expense.find({
-      sessionId: new mongoose.Types.ObjectId(sessionId),
-      deletedAt: null,
-    });
-
-    let expenseTotal = 0;
-    for (const exp of expenses) {
-      expenseTotal += exp.amount;
-    }
-
-    // 4. Aggregate Remaining Inventory Stock
-    const inventories = await DailyInventory.find({
-      sessionId: new mongoose.Types.ObjectId(sessionId),
-    });
-
-    let remainingStock = 0;
-    for (const inv of inventories) {
-      remainingStock += inv.remainingStock ?? 0;
-    }
+    const expenseTotal = expAgg[0]?.expenseTotal || 0;
+    const remainingStock = invAgg[0]?.remainingStock || 0;
 
     // 5. Calculate Final Numbers
     const netProfit = grossProfit - expenseTotal;
@@ -130,8 +138,8 @@ export class ClosingService {
     if (!session) {
       throw new ServiceError('Sesi tidak ditemukan', 'SESSION_NOT_FOUND');
     }
-    if (session.status === 'CLOSED') {
-      throw new ServiceError('Sesi ini sudah ditutup', 'SESSION_ALREADY_CLOSED');
+    if (session.status !== 'ACTIVE') {
+      throw new ServiceError('Hanya sesi aktif yang dapat ditutup', 'SESSION_NOT_ACTIVE');
     }
 
     const summary = await this.calculateSummary(session._id.toString());
@@ -143,10 +151,12 @@ export class ClosingService {
 
     await session.save();
 
-    await DailyInventory.updateMany(
-      { sessionId: session._id },
-      { status: 'CLOSED' }
-    );
+    await InventoryRepository.closeInventory(session._id.toString());
+
+    await ActivityLogService.log('CLOSE_SESSION', {
+      sessionId: session._id.toString(),
+      publicId: session.publicId,
+    });
 
     return { summary };
   }

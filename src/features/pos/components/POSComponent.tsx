@@ -6,8 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, AlertTriangle, Search, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react';
 import { formatCurrency } from '@/utils/formatters';
+import dynamic from 'next/dynamic';
 import { POSItemSnapshot, POSCartItem } from '../types/pos.types';
-import { CheckoutDialog } from '@/features/transaction/components/CheckoutDialog';
+
+const CheckoutDialog = dynamic(() => import('@/features/transaction/components/CheckoutDialog').then(mod => mod.CheckoutDialog), {
+  ssr: false,
+});
 
 export function POSComponent() {
   const [items, setItems] = useState<POSItemSnapshot[]>([]);
@@ -28,7 +32,7 @@ export function POSComponent() {
       if (data.success) {
         setItems(data.data);
       } else {
-        setError(data.error || 'Gagal memuat barang POS.');
+        setError(data.message || data.error || 'Gagal memuat barang POS.');
       }
     } catch {
       setError('Terjadi kesalahan jaringan.');
@@ -51,7 +55,7 @@ export function POSComponent() {
     });
   }, [items, searchQuery, categoryFilter]);
 
-  const addToCart = (item: POSItemSnapshot) => {
+  const addToCart = useCallback((item: POSItemSnapshot) => {
     if (item.remainingStock <= 0) return;
 
     setCart((prevCart) => {
@@ -77,12 +81,11 @@ export function POSComponent() {
         ];
       }
     });
-  };
+  }, []);
 
-  const updateQuantity = (inventoryId: string, delta: number) => {
-    const itemStock = items.find((i) => i.id === inventoryId)?.remainingStock || 0;
-    
+  const updateQuantity = useCallback((inventoryId: string, delta: number) => {
     setCart((prevCart) => {
+      const itemStock = items.find((i) => i.id === inventoryId)?.remainingStock || 0;
       return prevCart.map((c) => {
         if (c.inventoryId === inventoryId) {
           const newQty = c.quantity + delta;
@@ -92,11 +95,11 @@ export function POSComponent() {
         return c;
       });
     });
-  };
+  }, [items]);
 
-  const removeFromCart = (inventoryId: string) => {
+  const removeFromCart = useCallback((inventoryId: string) => {
     setCart((prev) => prev.filter((c) => c.inventoryId !== inventoryId));
-  };
+  }, []);
 
   const cartTotal = useMemo(() => {
     return cart.reduce((total, item) => total + item.subtotal, 0);

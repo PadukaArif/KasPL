@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import connectToDatabase from '@/lib/db/mongodb';
 import { Item, IItem } from '../models/item.model';
 
@@ -35,7 +36,8 @@ export class ItemRepository {
       Item.find(filter)
         .sort({ displayOrder: 1, createdAt: -1 })
         .skip(options.skip)
-        .limit(options.limit),
+        .limit(options.limit)
+        .lean(),
       Item.countDocuments(filter),
     ]);
 
@@ -44,17 +46,20 @@ export class ItemRepository {
 
   static async findById(id: string): Promise<IItem | null> {
     await connectToDatabase();
-    return Item.findOne({ _id: id, deletedAt: null });
+    const filter = mongoose.Types.ObjectId.isValid(id) && /^[0-9a-fA-F]{24}$/.test(id)
+      ? { $or: [{ _id: id }, { publicId: id }], deletedAt: null }
+      : { publicId: id, deletedAt: null };
+    return Item.findOne(filter).lean();
   }
 
   static async findByPublicId(publicId: string): Promise<IItem | null> {
     await connectToDatabase();
-    return Item.findOne({ publicId, deletedAt: null });
+    return Item.findOne({ publicId, deletedAt: null }).lean();
   }
 
   static async findByName(name: string): Promise<IItem | null> {
     await connectToDatabase();
-    return Item.findOne({ name, deletedAt: null }).collation({ locale: 'en', strength: 2 });
+    return Item.findOne({ name, deletedAt: null }).collation({ locale: 'en', strength: 2 }).lean();
   }
 
   static async create(data: Partial<IItem>): Promise<IItem> {
@@ -65,20 +70,41 @@ export class ItemRepository {
 
   static async update(id: string, data: Partial<IItem>): Promise<IItem | null> {
     await connectToDatabase();
-    return Item.findOneAndUpdate({ _id: id, deletedAt: null }, data, { new: true });
+    const filter = mongoose.Types.ObjectId.isValid(id) && /^[0-9a-fA-F]{24}$/.test(id)
+      ? { $or: [{ _id: id }, { publicId: id }], deletedAt: null }
+      : { publicId: id, deletedAt: null };
+    return Item.findOneAndUpdate(filter, data, { new: true }).lean();
   }
 
   static async deactivate(id: string): Promise<IItem | null> {
     await connectToDatabase();
+    const filter = mongoose.Types.ObjectId.isValid(id) && /^[0-9a-fA-F]{24}$/.test(id)
+      ? { $or: [{ _id: id }, { publicId: id }], deletedAt: null }
+      : { publicId: id, deletedAt: null };
     return Item.findOneAndUpdate(
-      { _id: id, deletedAt: null },
+      filter,
       { deletedAt: new Date(), isActive: false },
       { new: true }
-    );
+    ).lean();
   }
 
   static async count(): Promise<number> {
     await connectToDatabase();
     return Item.countDocuments();
+  }
+
+  static async findNextPublicId(): Promise<string> {
+    await connectToDatabase();
+    const lastItem = await Item.findOne({}).sort({ publicId: -1 }).select('publicId').lean();
+    let nextSeq = 1;
+    if (lastItem && lastItem.publicId) {
+      const match = lastItem.publicId.match(/\d+$/);
+      if (match) {
+        nextSeq = parseInt(match[0], 10) + 1;
+      }
+    }
+    const count = await Item.countDocuments();
+    nextSeq = Math.max(nextSeq, count + 1);
+    return `KSP-ITEM-${String(nextSeq).padStart(4, '0')}`;
   }
 }

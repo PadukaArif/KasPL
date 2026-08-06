@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
 import { AlertTriangle, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ExpenseFormDialogProps {
   open: boolean;
@@ -18,6 +18,7 @@ interface ExpenseFormDialogProps {
 }
 
 export function ExpenseFormDialog({ open, onOpenChange, onSuccess, expenseId, isSessionClosed = false }: ExpenseFormDialogProps) {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -44,7 +45,6 @@ export function ExpenseFormDialog({ open, onOpenChange, onSuccess, expenseId, is
             setAmount(String(data.amount));
             setNotes(data.notes || '');
             
-            // Format date for input type="date"
             if (data.expenseDate) {
               const dateObj = new Date(data.expenseDate);
               const year = dateObj.getFullYear();
@@ -68,7 +68,6 @@ export function ExpenseFormDialog({ open, onOpenChange, onSuccess, expenseId, is
         setAmount('');
         setNotes('');
         
-        // Set default to today
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -82,7 +81,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSuccess, expenseId, is
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSessionClosed) return;
+    if (isSessionClosed || saving) return;
     
     setError('');
 
@@ -96,11 +95,12 @@ export function ExpenseFormDialog({ open, onOpenChange, onSuccess, expenseId, is
     const url = expenseId ? `/api/expense/${expenseId}` : '/api/expense';
     const method = expenseId ? 'PATCH' : 'POST';
 
-    // Parse date for API
     let apiDate = undefined;
     if (expenseDate) {
-      // Append time to ensure it is valid Date string
-      apiDate = new Date(`${expenseDate}T12:00:00Z`).toISOString();
+      const d = new Date(`${expenseDate}T12:00:00Z`);
+      if (!isNaN(d.getTime())) {
+        apiDate = d.toISOString();
+      }
     }
 
     try {
@@ -118,13 +118,20 @@ export function ExpenseFormDialog({ open, onOpenChange, onSuccess, expenseId, is
 
       const data = await res.json();
       if (data.success) {
+        toast({
+          title: 'Berhasil',
+          message: expenseId ? 'Catatan pengeluaran berhasil diperbarui.' : 'Pengeluaran operasional baru berhasil dicatat.',
+          variant: 'success',
+        });
         onSuccess();
         onOpenChange(false);
       } else {
         setError(data.message || 'Gagal menyimpan data pengeluaran.');
+        toast({ title: 'Gagal', message: data.message || 'Gagal menyimpan pengeluaran.', variant: 'error' });
       }
     } catch {
       setError('Terjadi kesalahan jaringan.');
+      toast({ title: 'Kesalahan Jaringan', message: 'Gagal terhubung ke server.', variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -225,7 +232,7 @@ export function ExpenseFormDialog({ open, onOpenChange, onSuccess, expenseId, is
                 {isSessionClosed ? 'Tutup' : 'Batal'}
               </Button>
               {!isSessionClosed && (
-                <Button type="submit" disabled={isDisabled}>
+                <Button type="submit" disabled={isDisabled} className="bg-[#1F4E79] hover:bg-[#153552]">
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Simpan
                 </Button>

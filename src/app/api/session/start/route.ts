@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { SessionService } from '@/features/session/services/session.service';
+import { handleApiError } from '@/utils/apiResponse';
 
 export async function POST(request: Request) {
   try {
@@ -7,7 +8,6 @@ export async function POST(request: Request) {
     const session = await SessionService.startSession(body);
     return NextResponse.json({ success: true, data: session });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ success: false, error: message }, { status: 400 });
+    return handleApiError(error, 'Gagal memulai sesi');
   }
 }

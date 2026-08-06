@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { PwaRegister } from "@/components/shared/PwaRegister";
 import "./globals.css";
 
 const inter = Inter({
@@ -10,7 +11,21 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "KasPL - Kelola Penjualan Kelas dengan Mudah",
-  description: "Aplikasi pencatatan penjualan produk untuk kelas.",
+  description: "Aplikasi Point of Sale (POS), Penjualan & Manajemen Inventaris Koperasi Sekolah",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "KasPL",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: "/icons/icon-192x192.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({
@@ -25,6 +40,7 @@ export default function RootLayout({
     >
       <body className="min-h-screen bg-background">
         <MainLayout>{children}</MainLayout>
+        <PwaRegister />
       </body>
     </html>
   );

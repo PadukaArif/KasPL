@@ -7,8 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Eye, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { DayDetailDialog } from './DayDetailDialog';
+import dynamic from 'next/dynamic';
 import { Badge } from '@/components/ui/badge';
+
+const DayDetailDialog = dynamic(() => import('./DayDetailDialog').then(mod => mod.DayDetailDialog), {
+  ssr: false,
+});
 
 interface WeekReportTableProps {
   weeks: WeekSummary[];

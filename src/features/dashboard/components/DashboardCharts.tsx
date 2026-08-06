@@ -49,13 +49,13 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean, payload?:
   return null;
 };
 
-export function DashboardCharts({ dailyTrend, salesByCategory, expenseByCategory }: DashboardChartsProps) {
-  const formatYAxis = (tickItem: number) => {
-    if (tickItem >= 1000000) return `${(tickItem / 1000000).toFixed(1)}M`;
-    if (tickItem >= 1000) return `${(tickItem / 1000).toFixed(1)}k`;
-    return tickItem.toString();
-  };
+const formatYAxis = (tickItem: number) => {
+  if (tickItem >= 1000000) return `${(tickItem / 1000000).toFixed(1)}M`;
+  if (tickItem >= 1000) return `${(tickItem / 1000).toFixed(1)}k`;
+  return tickItem.toString();
+};
 
+export function DashboardCharts({ dailyTrend, salesByCategory, expenseByCategory }: DashboardChartsProps) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
       <Card className="col-span-1 md:col-span-2">

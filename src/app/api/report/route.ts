@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ReportService } from '@/features/report/services/report.service';
+import { handleApiError } from '@/utils/apiResponse';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,15 +11,13 @@ export async function GET(request: Request) {
     
     let month = monthParam ? parseInt(monthParam, 10) : null;
     
-    if (!month || isNaN(month)) {
+    if (!month || isNaN(month) || month < 1 || month > 12) {
       month = await ReportService.getCurrentPeriod();
     }
 
     const data = await ReportService.getPeriodSummary(month);
     return NextResponse.json({ success: true, data });
   } catch (error: unknown) {
-    console.error('Report API Error:', error);
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    return NextResponse.json({ success: false, code: 'INTERNAL_ERROR', message }, { status: 500 });
+    return handleApiError(error, 'Gagal memuat laporan');
   }
 }

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Koneksi Terputus - KasPL</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 2.5rem 2rem;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      background-color: #f1f5f9;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+    .icon svg {
+      width: 32px;
+      height: 32px;
+      stroke: #64748b;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 0.75rem;
+    }
+    p {
+      font-size: 0.95rem;
+      color: #475569;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #0f172a;
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 0.75rem 1.75rem;
+      border-radius: 8px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    .btn:hover {
+      background-color: #1e293b;
+    }
+    .footer {
+      margin-top: 2rem;
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M12 18h.01M8.11 8.11A8.96 8.96 0 0112 7c2.48 0 4.73.99 6.36 2.62M4.93 4.93A14.94 14.94 0 0112 3c3.87 0 7.37 1.47 10.01 3.88M1.05 1.05l21.9 21.9" />
+      </svg>
+    </div>
+    <h1>Koneksi Terputus</h1>
+    <p>
+      Anda sedang tidak terhubung ke internet. Aplikasi KasPL memerlukan koneksi jaringan untuk memproses transaksi Kasir POS dan memperbarui data inventaris secara real-time.
+    </p>
+    <button class="btn" onclick="window.location.reload()">Coba Lagi</button>
+  </div>
+  <div class="footer">
+    KasPL v1.0.0 &bull; Koperasi &amp; Penjualan Kelas
+  </div>
+</body>
+</html>

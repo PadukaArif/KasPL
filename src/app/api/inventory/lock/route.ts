@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { InventoryService, InventoryServiceError } from '@/features/inventory/services/inventory.service';
+import { InventoryService } from '@/features/inventory/services/inventory.service';
+import { handleApiError } from '@/utils/apiResponse';
 
 export async function POST(request: Request) {
   try {
@@ -10,10 +11,6 @@ export async function POST(request: Request) {
     await InventoryService.lockInventory(sessionId);
     return NextResponse.json({ success: true, message: 'Inventory berhasil dikunci' });
   } catch (error: unknown) {
-    if (error instanceof InventoryServiceError) {
-      return NextResponse.json({ success: false, code: error.code, message: error.message }, { status: 400 });
-    }
-    const message = error instanceof Error ? error.message : 'Internal Server Error';
-    return NextResponse.json({ success: false, code: 'INTERNAL_ERROR', message }, { status: 500 });
+    return handleApiError(error, 'Gagal mengunci inventory');
   }
 }

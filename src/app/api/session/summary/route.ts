@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ClosingService } from '@/features/closing/services/closing.service';
+import { handleApiError } from '@/utils/apiResponse';
 
 export async function GET(req: Request) {
   try {
@@ -7,17 +8,13 @@ export async function GET(req: Request) {
     const sessionId = searchParams.get('sessionId');
 
     if (!sessionId) {
-      return NextResponse.json({ success: false, error: 'Session ID diperlukan' }, { status: 400 });
+      return NextResponse.json({ success: false, code: 'VALIDATION_ERROR', message: 'Session ID diperlukan' }, { status: 400 });
     }
 
     const summary = await ClosingService.calculateSummary(sessionId);
 
     return NextResponse.json({ success: true, data: summary });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Gagal mengambil ringkasan sesi';
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Gagal mengambil ringkasan sesi');
   }
 }

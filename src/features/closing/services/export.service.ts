@@ -9,24 +9,40 @@ import { ServiceError } from '@/utils/errors';
 import ExcelJS from 'exceljs';
 
 export class ExportService {
-  static async getExportData(sessionId: string) {
+  static async getExportData(sessionId?: string) {
     await connectToDatabase();
 
-    const session = await SellingSession.findById(sessionId).populate('guardians');
+    let session;
+    if (sessionId) {
+      if (mongoose.Types.ObjectId.isValid(sessionId)) {
+        session = await SellingSession.findById(sessionId).populate('guardians');
+      }
+      if (!session) {
+        session = await SellingSession.findOne({ publicId: sessionId }).populate('guardians');
+      }
+    }
+    if (!session) {
+      session = await SellingSession.findOne({ status: 'ACTIVE' }).populate('guardians');
+    }
+    if (!session) {
+      session = await SellingSession.findOne({}).sort({ createdAt: -1 }).populate('guardians');
+    }
     if (!session) {
       throw new ServiceError('Sesi tidak ditemukan', 'SESSION_NOT_FOUND');
     }
 
+    const sessionObjId = session._id;
+
     const [transactions, expenses, inventories] = await Promise.all([
-      Transaction.find({ sessionId: new mongoose.Types.ObjectId(sessionId) }).sort({ createdAt: 1 }),
-      Expense.find({ sessionId: new mongoose.Types.ObjectId(sessionId), deletedAt: null }).sort({ expenseDate: 1 }),
-      DailyInventory.find({ sessionId: new mongoose.Types.ObjectId(sessionId) }).sort({ itemNameSnapshot: 1 }),
+      Transaction.find({ $or: [{ sessionId: sessionObjId }, { sessionId: sessionObjId.toString() }] }).sort({ createdAt: 1 }).lean(),
+      Expense.find({ $or: [{ sessionId: sessionObjId }, { sessionId: sessionObjId.toString() }], deletedAt: null }).sort({ expenseDate: 1 }).lean(),
+      DailyInventory.find({ $or: [{ sessionId: sessionObjId }, { sessionId: sessionObjId.toString() }] }).sort({ itemNameSnapshot: 1 }).lean(),
     ]);
 
     let summary = session.summary;
     if (!summary) {
       // If not closed, calculate dynamically
-      summary = await ClosingService.calculateSummary(sessionId);
+      summary = await ClosingService.calculateSummary(sessionObjId.toString());
     }
 
     return {
@@ -38,7 +54,7 @@ export class ExportService {
     };
   }
 
-  static async generateExcel(sessionId: string): Promise<Buffer> {
+  static async generateExcel(sessionId?: string): Promise<Buffer> {
     const data = await this.getExportData(sessionId);
     const { session, transactions, expenses, inventories, summary } = data;
 

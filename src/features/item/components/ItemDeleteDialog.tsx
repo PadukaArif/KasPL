@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface ItemDeleteDialogProps {
   open: boolean;
@@ -14,6 +15,7 @@ interface ItemDeleteDialogProps {
 }
 
 export function ItemDeleteDialog({ open, onOpenChange, onSuccess, itemId, itemName }: ItemDeleteDialogProps) {
+  const { toast } = useToast();
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,13 +30,20 @@ export function ItemDeleteDialog({ open, onOpenChange, onSuccess, itemId, itemNa
       });
       const data = await res.json();
       if (data.success) {
+        toast({
+          title: 'Berhasil',
+          message: 'Barang berhasil dinonaktifkan.',
+          variant: 'success',
+        });
         onSuccess();
         onOpenChange(false);
       } else {
         setError(data.message || 'Gagal menghapus barang.');
+        toast({ title: 'Gagal', message: data.message || 'Gagal menghapus barang.', variant: 'error' });
       }
     } catch {
       setError('Terjadi kesalahan jaringan.');
+      toast({ title: 'Kesalahan Jaringan', message: 'Tidak dapat menghubungi server.', variant: 'error' });
     } finally {
       setDeleting(false);
     }

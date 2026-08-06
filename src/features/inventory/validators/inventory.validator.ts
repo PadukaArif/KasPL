@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const initializeInventoryItemSchema = z.object({
-  itemId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'ID barang tidak valid'),
+  itemId: z.string().min(1, 'ID barang tidak valid'),
   openingStock: z
     .number({ message: 'Opening stock harus berupa angka' })
     .int('Opening stock harus berupa bilangan bulat')
@@ -9,7 +9,7 @@ export const initializeInventoryItemSchema = z.object({
 });
 
 export const initializeInventorySchema = z.object({
-  sessionId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'ID sesi tidak valid'),
+  sessionId: z.string().min(1, 'ID sesi tidak valid'),
   items: z.array(initializeInventoryItemSchema).min(1, 'Harus menginisialisasi minimal 1 barang'),
 });
 

@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '@/utils/formatters';
 import { CheckoutSuccessData } from '../types/transaction.types';
+import { useToast } from '@/hooks/use-toast';
+
+import { getTodayBusinessDate } from '@/utils/date';
 
 export interface CheckoutDialogProps {
   open: boolean;
@@ -14,6 +17,7 @@ export interface CheckoutDialogProps {
 }
 
 export function CheckoutDialog({ open, onOpenChange, cart, totalAmount, onCheckoutSuccess }: CheckoutDialogProps) {
+  const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [successData, setSuccessData] = useState<CheckoutSuccessData | null>(null);
@@ -23,10 +27,7 @@ export function CheckoutDialog({ open, onOpenChange, cart, totalAmount, onChecko
     setError('');
 
     try {
-      const today = new Date();
-      // Format as YYYY-MM-DD local time
-      const offset = today.getTimezoneOffset()
-      const businessDate = new Date(today.getTime() - (offset*60*1000)).toISOString().split('T')[0];
+      const businessDate = getTodayBusinessDate();
 
       const payload = {
         businessDate,
@@ -45,11 +46,26 @@ export function CheckoutDialog({ open, onOpenChange, cart, totalAmount, onChecko
       const data = await res.json();
       if (data.success) {
         setSuccessData(data.data as CheckoutSuccessData);
+        toast({
+          title: 'Pembayaran Sukses!',
+          message: `Transaksi ${data.data.transactionNumber} senilai ${formatCurrency(data.data.grossRevenue)} berhasil disimpan.`,
+          variant: 'success',
+        });
       } else {
         setError(data.message || 'Gagal melakukan checkout.');
+        toast({
+          title: 'Checkout Gagal',
+          message: data.message || 'Gagal memproses transaksi.',
+          variant: 'error',
+        });
       }
     } catch {
       setError('Terjadi kesalahan jaringan.');
+      toast({
+        title: 'Kesalahan Ketenagaan',
+        message: 'Koneksi ke server terputus.',
+        variant: 'error',
+      });
     } finally {
       setSubmitting(false);
     }

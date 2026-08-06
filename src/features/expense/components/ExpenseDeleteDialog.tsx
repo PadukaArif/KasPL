@@ -31,7 +31,7 @@ export function ExpenseDeleteDialog({
   const [error, setError] = useState('');
 
   const handleDelete = async () => {
-    if (!expenseId) return;
+    if (!expenseId || loading) return;
 
     setLoading(true);
     setError('');

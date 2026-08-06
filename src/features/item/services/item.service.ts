@@ -41,6 +41,9 @@ export class ItemService {
   }
 
   static async getItemById(id: string) {
+    if (!id) {
+      throw new ItemServiceError('Item tidak ditemukan', 'ITEM_NOT_FOUND');
+    }
     const item = await ItemRepository.findById(id);
     if (!item) {
       throw new ItemServiceError('Item tidak ditemukan', 'ITEM_NOT_FOUND');
@@ -69,9 +72,8 @@ export class ItemService {
       throw new ItemServiceError('Barang dengan nama tersebut sudah terdaftar', 'ITEM_ALREADY_EXISTS');
     }
 
-    // 3. Generate public ID
-    const count = await ItemRepository.count();
-    const publicId = `KSP-ITEM-${String(count + 1).padStart(4, '0')}`;
+    // 3. Generate public ID safely
+    const publicId = await ItemRepository.findNextPublicId();
 
     // 4. Save
     const item = await ItemRepository.create({
@@ -86,10 +88,25 @@ export class ItemService {
       name: item.name,
     });
 
-    return item;
+    return {
+      id: item._id.toString(),
+      publicId: item.publicId,
+      name: item.name,
+      category: item.category,
+      costPrice: item.costPrice,
+      sellingPrice: item.sellingPrice,
+      recommendedStock: item.recommendedStock,
+      displayOrder: item.displayOrder,
+      isActive: item.isActive,
+      createdAt: item.createdAt,
+    };
   }
 
   static async updateItem(id: string, data: UpdateItemInput) {
+    if (!id) {
+      throw new ItemServiceError('Item tidak ditemukan', 'ITEM_NOT_FOUND');
+    }
+
     // 1. Zod Validation
     const parsed = updateItemSchema.parse(data);
 
@@ -103,7 +120,7 @@ export class ItemService {
     if (parsed.name && parsed.name.trim().toLowerCase() !== current.name.toLowerCase()) {
       const normalizedName = parsed.name.trim();
       const existing = await ItemRepository.findByName(normalizedName);
-      if (existing) {
+      if (existing && existing._id.toString() !== current._id.toString()) {
         throw new ItemServiceError('Barang dengan nama tersebut sudah terdaftar', 'ITEM_ALREADY_EXISTS');
       }
     }
@@ -116,22 +133,42 @@ export class ItemService {
     }
 
     // 5. Update
-    const updated = await ItemRepository.update(id, parsed);
-
-    // 6. Activity Log
-    if (updated) {
-      await ActivityLogService.log('UPDATE_ITEM', {
-        itemId: updated._id.toString(),
-        publicId: updated.publicId,
-        changes: parsed,
-      });
+    const updated = await ItemRepository.update(current._id.toString(), parsed);
+    if (!updated) {
+      throw new ItemServiceError('Item tidak ditemukan', 'ITEM_NOT_FOUND');
     }
 
-    return updated;
+    // 6. Activity Log
+    await ActivityLogService.log('UPDATE_ITEM', {
+      itemId: updated._id.toString(),
+      publicId: updated.publicId,
+      changes: parsed,
+    });
+
+    return {
+      id: updated._id.toString(),
+      publicId: updated.publicId,
+      name: updated.name,
+      category: updated.category,
+      costPrice: updated.costPrice,
+      sellingPrice: updated.sellingPrice,
+      recommendedStock: updated.recommendedStock,
+      displayOrder: updated.displayOrder,
+      isActive: updated.isActive,
+    };
   }
 
   static async deactivateItem(id: string) {
-    const deactivated = await ItemRepository.deactivate(id);
+    if (!id) {
+      throw new ItemServiceError('Item tidak ditemukan', 'ITEM_NOT_FOUND');
+    }
+
+    const current = await ItemRepository.findById(id);
+    if (!current) {
+      throw new ItemServiceError('Item tidak ditemukan', 'ITEM_NOT_FOUND');
+    }
+
+    const deactivated = await ItemRepository.deactivate(current._id.toString());
     if (!deactivated) {
       throw new ItemServiceError('Item tidak ditemukan', 'ITEM_NOT_FOUND');
     }
@@ -143,6 +180,12 @@ export class ItemService {
       name: deactivated.name,
     });
 
-    return deactivated;
+    return {
+      id: deactivated._id.toString(),
+      publicId: deactivated.publicId,
+      name: deactivated.name,
+      isActive: deactivated.isActive,
+      deletedAt: deactivated.deletedAt,
+    };
   }
 }

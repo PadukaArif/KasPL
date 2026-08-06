@@ -17,4 +17,4 @@ const activityLogSchema = new Schema<IActivityLog>(
 );
 
 export const ActivityLog: Model<IActivityLog> =
-  mongoose.models.ActivityLog || mongoose.model<IActivityLog>('ActivityLog', activityLogSchema);
+  mongoose.models.SystemActivityLog || mongoose.model<IActivityLog>('SystemActivityLog', activityLogSchema);
